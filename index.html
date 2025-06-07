@@ -1,93 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>3D Model Viewer - Faster Inverted Motion</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: white; }
-        canvas { width: 100%; height: 100vh; display: block; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D Model Viewer - Reset on Double Click</title>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: white; }
+    canvas { width: 100%; height: 100vh; display: block; }
+  </style>
 </head>
 <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
-    <script>
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xffffff);
+  <script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
-        directionalLight.position.set(0, 1, 1);
-        scene.add(directionalLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(0, 1, 1);
+    scene.add(directionalLight);
 
-        camera.position.z = 5;
+    camera.position.z = 5;
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
 
-        let model;
-        const loader = new THREE.GLTFLoader();
-        loader.load(
-            'your-model.glb',
-            (gltf) => {
-                model = gltf.scene;
-                scene.add(model);
+    let model;
+    let initialRotation = new THREE.Euler();
+    let initialPosition = new THREE.Vector3();
 
-                const box = new THREE.Box3().setFromObject(model);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const scale = 2 / maxDim;
-                model.scale.set(scale, scale, scale);
-                model.position.sub(center.multiplyScalar(scale));
-            },
-            (xhr) => {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-            },
-            (error) => {
-                console.error('Error loading model:', error);
-            }
-        );
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      'path/to/your/model.gltf', // 🔁 Replace with actual model path
+      (gltf) => {
+        model = gltf.scene;
+        scene.add(model);
 
-        let targetRotationX = 0;
-        let targetRotationY = 0;
-        const rotationSpeed = 0.06; // Faster than before
+        // Center and scale the model
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 2 / maxDim;
+        model.scale.set(scale, scale, scale);
+        model.position.sub(center.multiplyScalar(scale));
 
-        document.addEventListener('mousemove', (event) => {
-            if (model) {
-                const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-                const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-                targetRotationY = -mouseX * Math.PI * 0.15; // Slightly wider motion
-                targetRotationX = -mouseY * Math.PI * 0.08;
-            }
-        });
+        // Store initial state
+        initialRotation.copy(model.rotation);
+        initialPosition.copy(model.position);
+      },
+      (xhr) => {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+      },
+      (error) => {
+        console.error('Error loading model:', error);
+      }
+    );
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+    let targetRotationX = 0;
+    let targetRotationY = 0;
+    const rotationSpeed = 0.06;
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if (model) {
-                model.rotation.y += (targetRotationY - model.rotation.y) * rotationSpeed;
-                model.rotation.x += (targetRotationX - model.rotation.x) * rotationSpeed;
-            }
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
+    document.addEventListener('mousemove', (event) => {
+      if (model) {
+        const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        targetRotationY = -mouseX * Math.PI * 0.15;
+        targetRotationX = -mouseY * Math.PI * 0.08;
+      }
+    });
+
+    // 🔁 Reset on double-click
+    document.addEventListener('dblclick', () => {
+      if (model) {
+        model.rotation.copy(initialRotation);
+        model.position.copy(initialPosition);
+        targetRotationX = initialRotation.x;
+        targetRotationY = initialRotation.y;
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (model) {
+        model.rotation.y += (targetRotationY - model.rotation.y) * rotationSpeed;
+        model.rotation.x += (targetRotationX - model.rotation.x) * rotationSpeed;
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
 </body>
 </html>
