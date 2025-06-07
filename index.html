@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>3D Model Viewer - Inverted Motion</title>
+    <title>3D Model Viewer - Faster Inverted Motion</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: white; }
         canvas { width: 100%; height: 100vh; display: block; }
@@ -61,14 +61,14 @@
 
         let targetRotationX = 0;
         let targetRotationY = 0;
-        const rotationSpeed = 0.03;
+        const rotationSpeed = 0.06; // Faster than before
 
         document.addEventListener('mousemove', (event) => {
             if (model) {
                 const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
                 const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-                targetRotationY = -mouseX * Math.PI * 0.1; // Inverted horizontal
-                targetRotationX = -mouseY * Math.PI * 0.05; // Inverted vertical
+                targetRotationY = -mouseX * Math.PI * 0.15; // Slightly wider motion
+                targetRotationX = -mouseY * Math.PI * 0.08;
             }
         });
 
