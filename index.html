@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Model Viewer - Reset on Double Click</title>
+  <title>3D Model Viewer - Full Reset on Double Click</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: white; }
     canvas { width: 100%; height: 100vh; display: block; }
@@ -29,7 +29,7 @@
     directionalLight.position.set(0, 1, 1);
     scene.add(directionalLight);
 
-    camera.position.z = 5;
+    camera.position.set(0, 0, 5); // Default view
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -38,10 +38,12 @@
     let model;
     let initialRotation = new THREE.Euler();
     let initialPosition = new THREE.Vector3();
+    let initialCameraPosition = camera.position.clone();
+    let initialControlTarget = controls.target.clone();
 
     const loader = new THREE.GLTFLoader();
     loader.load(
-      'your-model.glb', // 🔁 Replace with actual model path
+      'your-model.glb', // 🔁 Replace with your model path
       (gltf) => {
         model = gltf.scene;
         scene.add(model);
@@ -55,13 +57,13 @@
         model.scale.set(scale, scale, scale);
         model.position.sub(center.multiplyScalar(scale));
 
-        // Store initial state
+        // Store initial values
         initialRotation.copy(model.rotation);
         initialPosition.copy(model.position);
+        initialCameraPosition = camera.position.clone();
+        initialControlTarget = controls.target.clone();
       },
-      (xhr) => {
-        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-      },
+      undefined,
       (error) => {
         console.error('Error loading model:', error);
       }
@@ -80,13 +82,21 @@
       }
     });
 
-    // 🔁 Reset on double-click
+    // ✅ Full reset on double-click
     document.addEventListener('dblclick', () => {
       if (model) {
+        // Reset model
         model.rotation.copy(initialRotation);
         model.position.copy(initialPosition);
         targetRotationX = initialRotation.x;
         targetRotationY = initialRotation.y;
+
+        // Reset camera
+        camera.position.copy(initialCameraPosition);
+
+        // Reset controls
+        controls.target.copy(initialControlTarget);
+        controls.update();
       }
     });
 
