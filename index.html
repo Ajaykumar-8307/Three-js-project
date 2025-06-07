@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Model Viewer - Full Reset on Double Click</title>
+  <title>3D Model Viewer - Smooth Reset</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: white; }
     canvas { width: 100%; height: 100vh; display: block; }
@@ -29,7 +29,7 @@
     directionalLight.position.set(0, 1, 1);
     scene.add(directionalLight);
 
-    camera.position.set(0, 0, 5); // Default view
+    camera.position.set(0, 0, 5);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -43,12 +43,11 @@
 
     const loader = new THREE.GLTFLoader();
     loader.load(
-      'your-model.glb', // 🔁 Replace with your model path
+      'your-model.glb', // 🔁 Replace with actual path
       (gltf) => {
         model = gltf.scene;
         scene.add(model);
 
-        // Center and scale the model
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
@@ -57,16 +56,13 @@
         model.scale.set(scale, scale, scale);
         model.position.sub(center.multiplyScalar(scale));
 
-        // Store initial values
         initialRotation.copy(model.rotation);
         initialPosition.copy(model.position);
-        initialCameraPosition = camera.position.clone();
-        initialControlTarget = controls.target.clone();
+        initialCameraPosition.copy(camera.position);
+        initialControlTarget.copy(controls.target);
       },
       undefined,
-      (error) => {
-        console.error('Error loading model:', error);
-      }
+      (error) => console.error('Error loading model:', error)
     );
 
     let targetRotationX = 0;
@@ -82,41 +78,72 @@
       }
     });
 
-    // ✅ Full reset on double-click
+    // 👇 Reset animation variables
+    let isResetting = false;
+    let resetProgress = 0;
+    const resetDuration = 60; // frames (1s at 60fps)
+
+    let startRotation = new THREE.Euler();
+    let startPosition = new THREE.Vector3();
+    let startCamPosition = new THREE.Vector3();
+    let startTarget = new THREE.Vector3();
+
     document.addEventListener('dblclick', () => {
-      if (model) {
-        // Reset model
-        model.rotation.copy(initialRotation);
-        model.position.copy(initialPosition);
-        targetRotationX = initialRotation.x;
-        targetRotationY = initialRotation.y;
+      if (!model) return;
+      // Capture current state
+      startRotation.copy(model.rotation);
+      startPosition.copy(model.position);
+      startCamPosition.copy(camera.position);
+      startTarget.copy(controls.target);
 
-        // Reset camera
-        camera.position.copy(initialCameraPosition);
-
-        // Reset controls
-        controls.target.copy(initialControlTarget);
-        controls.update();
-      }
+      resetProgress = 0;
+      isResetting = true;
     });
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (model) {
+        model.rotation.y += (targetRotationY - model.rotation.y) * rotationSpeed;
+        model.rotation.x += (targetRotationX - model.rotation.x) * rotationSpeed;
+      }
+
+      if (isResetting) {
+        const t = resetProgress / resetDuration;
+
+        // Interpolate model rotation & position
+        model.rotation.x = lerp(startRotation.x, initialRotation.x, t);
+        model.rotation.y = lerp(startRotation.y, initialRotation.y, t);
+        model.rotation.z = lerp(startRotation.z, initialRotation.z, t);
+
+        model.position.lerpVectors(startPosition, initialPosition, t);
+
+        // Camera and controls
+        camera.position.lerpVectors(startCamPosition, initialCameraPosition, t);
+        controls.target.lerpVectors(startTarget, initialControlTarget, t);
+        controls.update();
+
+        resetProgress++;
+        if (resetProgress >= resetDuration) {
+          isResetting = false;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    function animate() {
-      requestAnimationFrame(animate);
-      if (model) {
-        model.rotation.y += (targetRotationY - model.rotation.y) * rotationSpeed;
-        model.rotation.x += (targetRotationX - model.rotation.x) * rotationSpeed;
-      }
-      controls.update();
-      renderer.render(scene, camera);
-    }
-
-    animate();
   </script>
 </body>
 </html>
